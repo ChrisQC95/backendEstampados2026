@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/usuarios")
-@CrossOrigin(origins = "*") // Para evitar el CORS
+// @CrossOrigin(origins = "*") // Para evitar el CORS
 public class UsuarioController {
 
     @Autowired

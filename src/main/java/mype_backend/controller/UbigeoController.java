@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/ubigeos")
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 public class UbigeoController {
 
     @Autowired
@@ -36,8 +36,10 @@ public class UbigeoController {
 
     /**
      * GET /api/ubigeos/distritos?departamento=LIMA&provincia=LIMA
-     * Retorna los objetos Ubigeo completos (ubigeo, departamento, provincia, distrito).
-     * El frontend extrae el campo `ubigeo` (código 6 dígitos) para enviarlo al backend.
+     * Retorna los objetos Ubigeo completos (ubigeo, departamento, provincia,
+     * distrito).
+     * El frontend extrae el campo `ubigeo` (código 6 dígitos) para enviarlo al
+     * backend.
      */
     @GetMapping("/distritos")
     public List<Ubigeo> listarDistritos(

@@ -8,7 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/vehiculos")
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 public class VehiculoController {
 
     @Autowired

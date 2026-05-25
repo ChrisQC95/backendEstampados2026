@@ -8,7 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/conductores")
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 public class ConductorController {
 
     @Autowired

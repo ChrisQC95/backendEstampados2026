@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*") // Permitir llamadas desde tu React
+// @CrossOrigin(origins = "*") // Permitir llamadas desde tu React
 public class AuthController {
 
     @Autowired

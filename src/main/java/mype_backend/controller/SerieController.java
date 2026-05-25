@@ -8,7 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/series")
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 public class SerieController {
 
     @Autowired
