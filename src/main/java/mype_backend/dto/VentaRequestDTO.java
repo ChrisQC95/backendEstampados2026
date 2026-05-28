@@ -32,4 +32,5 @@ public class VentaRequestDTO {
 
     // LA LISTA DE PRODUCTOS (El carrito)
     private List<VentaDetalleRequestDTO> detalles;
+    private GuiaRemisionRequestDTO guiaRemision;
 }

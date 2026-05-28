@@ -30,6 +30,7 @@ public class SocioNegocioController {
     @PostMapping
     public SocioNegocio crear(@RequestBody SocioNegocioDTO dto) {
         SocioNegocio socio = SocioNegocio.builder()
+                .id(dto.getId())
                 .usuarioId(dto.getUsuarioId())
                 .tipoSocio(dto.getTipoSocio())
                 .tipoDocumento(dto.getTipoDocumento())

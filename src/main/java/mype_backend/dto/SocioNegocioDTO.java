@@ -5,6 +5,8 @@ import lombok.Data;
 @Data
 public class SocioNegocioDTO {
 
+    private Long id;
+
     private Long usuarioId;
 
     private String tipoSocio;

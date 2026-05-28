@@ -1,17 +1,21 @@
 package mype_backend.service;
 
 import mype_backend.dto.VentaRequestDTO;
+import mype_backend.dto.GuiaRemisionRequestDTO;
 import mype_backend.dto.VentaDetalleRequestDTO;
 import mype_backend.entity.Venta;
 import mype_backend.entity.VentaDetalle;
+import mype_backend.entity.GuiaRemision;
 import mype_backend.entity.Serie;
 import mype_backend.repository.VentaRepository;
 import mype_backend.repository.SerieRepository;
+import mype_backend.repository.GuiaRemisionRepository;
 import mype_backend.repository.ProductoServicioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.math.BigDecimal;
 
 @Service
 public class VentaService {
@@ -24,6 +28,9 @@ public class VentaService {
 
     @Autowired
     private ProductoServicioRepository productoServicioRepository;
+
+    @Autowired
+    private GuiaRemisionRepository guiaRemisionRepository;
 
     @Transactional
     public Venta registrarVenta(VentaRequestDTO dto) {
@@ -38,7 +45,8 @@ public class VentaService {
                         "La serie '" + dto.getSerie() + "' no está configurada o activa para este comprobante."));
 
         // 2. Incrementar el correlativo de forma automática
-        Integer nuevoCorrelativo = serieSeleccionada.getCorrelativoActual() + 1;
+        Integer correlativo = serieSeleccionada.getCorrelativoActual() != null ? serieSeleccionada.getCorrelativoActual() : 0;
+        Integer nuevoCorrelativo = correlativo + 1;
         serieSeleccionada.setCorrelativoActual(nuevoCorrelativo);
         serieRepository.save(serieSeleccionada); // Actualiza la numeración en la BD
 
@@ -80,20 +88,37 @@ public class VentaService {
             // ('S') se ignoran.
             productoServicioRepository.findById(detalleDTO.getProductoId()).ifPresent(producto -> {
                 if ("B".equals(producto.getTipo())) {
-                    if (producto.getStockActual().compareTo(detalleDTO.getCantidad()) < 0) {
+                    BigDecimal stockActual = producto.getStockActual() != null ? producto.getStockActual() : BigDecimal.ZERO;
+                    if (stockActual.compareTo(detalleDTO.getCantidad()) < 0) {
                         throw new RuntimeException("Stock insuficiente para el producto: " + producto.getNombre()
-                                + ". Stock disponible: " + producto.getStockActual());
+                                + ". Stock disponible: " + stockActual);
                     }
                     // Restamos el stock
-                    producto.setStockActual(producto.getStockActual().subtract(detalleDTO.getCantidad()));
+                    producto.setStockActual(stockActual.subtract(detalleDTO.getCantidad()));
                     productoServicioRepository.save(producto);
                 }
             });
         }
+        Venta ventaGuardada = ventaRepository.save(venta);
+        if (dto.getGuiaRemision() != null) {
+            GuiaRemisionRequestDTO guiaDto = dto.getGuiaRemision();
 
-        // 5. Guardar la Venta completa (Por cascada guardará automáticamente el detalle
-        // en ventas_detalle)
-        return ventaRepository.save(venta);
+            GuiaRemision guia = GuiaRemision.builder()
+                    .ventaId(ventaGuardada.getId()) // <- Aquí usamos el ID recién creado
+                    .motivoTrasladoCodigo(guiaDto.getMotivoTrasladoCodigo())
+                    .conductorId(guiaDto.getConductorId())
+                    .vehiculoId(guiaDto.getVehiculoId())
+                    .pesoBrutoTotal(guiaDto.getPesoBrutoTotal())
+                    .ubigeoPartida(guiaDto.getUbigeoPartida())
+                    .direccionPartida(guiaDto.getDireccionPartida())
+                    .ubigeoLlegada(guiaDto.getUbigeoLlegada())
+                    .direccionLlegada(guiaDto.getDireccionLlegada())
+                    .build();
+
+            guiaRemisionRepository.save(guia);
+        }
+
+        return ventaGuardada;
     }
 
     public List<Venta> listarHistorial(Long usuarioId) {
