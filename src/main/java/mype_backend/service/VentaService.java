@@ -1,5 +1,6 @@
 package mype_backend.service;
 
+import mype_backend.dto.ReporteVentaExcelDTO;
 import mype_backend.dto.VentaRequestDTO;
 import mype_backend.dto.GuiaRemisionRequestDTO;
 import mype_backend.dto.VentaDetalleRequestDTO;
@@ -14,6 +15,8 @@ import mype_backend.repository.ProductoServicioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.math.BigDecimal;
 
@@ -124,4 +127,17 @@ public class VentaService {
     public List<Venta> listarHistorial(Long usuarioId) {
         return ventaRepository.findByUsuarioId(usuarioId);
     }
-}
+
+    /**
+     * Genera los datos para el reporte Excel Maestro-Detalle.
+     * @param usuarioId ID del usuario (empresa)
+     * @param fechaInicio Inicio del rango (YYYY-MM-DD), incluido
+     * @param fechaFin Fin del rango (YYYY-MM-DD), incluido (se lleva al final del día)
+     */
+    public List<ReporteVentaExcelDTO> generarReporteExcel(Long usuarioId, LocalDate fechaInicio, LocalDate fechaFin) {
+        // Convertir a LocalDateTime para la comparación (inicio: 00:00:00, fin: 23:59:59)
+        LocalDateTime inicio = fechaInicio.atStartOfDay();
+        LocalDateTime fin = fechaFin.atTime(23, 59, 59);
+        return ventaRepository.findReporteExcel(usuarioId, inicio, fin);
+    }
+}
