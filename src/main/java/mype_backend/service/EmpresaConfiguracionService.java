@@ -55,7 +55,15 @@ public class EmpresaConfiguracionService {
         Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        usuario.setRuc(dto.getRuc());
+        // Validar si el RUC ya está en uso por otra cuenta
+        if (dto.getRuc() != null && !dto.getRuc().trim().isEmpty()) {
+            Optional<Usuario> rucUser = usuarioRepository.findByRuc(dto.getRuc().trim());
+            if (rucUser.isPresent() && !rucUser.get().getId().equals(usuario.getId())) {
+                throw new IllegalArgumentException("El RUC " + dto.getRuc() + " ya está asociado a otra cuenta.");
+            }
+        }
+
+        usuario.setRuc(dto.getRuc() != null ? dto.getRuc().trim() : null);
         usuario.setRazonSocial(dto.getRazonSocial());
         usuario.setNombreComercial(dto.getNombreComercial());
         usuario.setDireccionFiscal(dto.getDireccionFiscal());

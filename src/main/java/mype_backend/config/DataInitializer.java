@@ -44,6 +44,16 @@ public class DataInitializer implements CommandLineRunner {
                         jdbcTemplate.execute(
                                         "INSERT INTO monedas (id, codigo_sunat, descripcion, simbolo) VALUES (2, 'USD', 'Dólares', '$') ON CONFLICT (id) DO NOTHING");
 
+                        // Asegurar el catálogo de motivos de traslado
+                        try {
+                                jdbcTemplate.execute(
+                                                "CREATE TABLE IF NOT EXISTS motivos_traslado (codigo VARCHAR(2) PRIMARY KEY, descripcion VARCHAR(255))");
+                                jdbcTemplate.execute(
+                                                "INSERT INTO motivos_traslado (codigo, descripcion) VALUES ('01', 'Venta') ON CONFLICT (codigo) DO NOTHING");
+                        } catch (Exception e) {
+                                log.warn("No se pudo crear/poblar motivos_traslado, posiblemente la estructura sea distinta: {}", e.getMessage());
+                        }
+
                         log.info("Catálogos básicos inicializados correctamente.");
                 } catch (Exception e) {
                         log.warn(

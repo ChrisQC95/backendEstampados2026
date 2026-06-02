@@ -5,6 +5,7 @@ import mype_backend.service.EmpresaConfiguracionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/empresa-configuracion")
@@ -22,7 +23,11 @@ public class EmpresaConfiguracionController {
 
     // Guardar los datos dividiéndolos en sus tablas respectivas
     @PostMapping
-    public ResponseEntity<EmpresaPerfilDTO> guardar(@RequestBody EmpresaPerfilDTO dto) {
-        return ResponseEntity.ok(service.guardarOActualizar(dto));
+    public ResponseEntity<?> guardar(@RequestBody EmpresaPerfilDTO dto) {
+        try {
+            return ResponseEntity.ok(service.guardarOActualizar(dto));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 }
