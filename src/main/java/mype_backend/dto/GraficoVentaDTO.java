@@ -10,6 +10,9 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GraficoVentaDTO {
-    private String name; // Mes, ej: "Jan", "Feb"
-    private BigDecimal total;
+    private String name;          // Mes abreviado en español, ej: "Ene", "Feb"
+    private BigDecimal facturas;  // Monto de Facturas Electrónicas en el mes
+    private BigDecimal boletas;   // Monto de Boletas de Venta en el mes
+    private BigDecimal notasVenta; // Monto de Notas de Venta en el mes
+    private BigDecimal total;     // Suma de los tres tipos
 }

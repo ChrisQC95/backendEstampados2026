@@ -8,10 +8,12 @@ import mype_backend.entity.Venta;
 import mype_backend.entity.VentaDetalle;
 import mype_backend.entity.GuiaRemision;
 import mype_backend.entity.Serie;
+import mype_backend.entity.TipoComprobante;
 import mype_backend.repository.VentaRepository;
 import mype_backend.repository.SerieRepository;
 import mype_backend.repository.GuiaRemisionRepository;
 import mype_backend.repository.ProductoServicioRepository;
+import mype_backend.repository.TipoComprobanteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,9 @@ public class VentaService {
 
     @Autowired
     private GuiaRemisionRepository guiaRemisionRepository;
+
+    @Autowired
+    private TipoComprobanteRepository tipoComprobanteRepository;
 
     @Transactional
     public Venta registrarVenta(VentaRequestDTO dto) {
@@ -71,7 +76,25 @@ public class VentaService {
                 .fechaVencimiento(dto.getFechaVencimiento())
                 .build();
 
-        // 4. Procesar el Carrito de Compras (Detalles) y Actualizar Inventario
+        // 4. Validación Tributaria: La Nota de Venta solo admite productos no gravados
+        TipoComprobante tipoComprobante = tipoComprobanteRepository.findById(dto.getTipoComprobanteId())
+                .orElseThrow(() -> new RuntimeException("Tipo de comprobante no encontrado: ID " + dto.getTipoComprobanteId()));
+
+        boolean esNotaDeVenta = "Nota de Venta".equalsIgnoreCase(tipoComprobante.getDescripcion());
+
+        if (esNotaDeVenta) {
+            for (VentaDetalleRequestDTO detalleDTO : dto.getDetalles()) {
+                productoServicioRepository.findById(detalleDTO.getProductoId()).ifPresent(producto -> {
+                    if (Boolean.TRUE.equals(producto.getAfectoIgv())) {
+                        throw new RuntimeException(
+                                "Las Notas de Venta solo permiten productos no gravados/exonerados. " +
+                                "El producto '" + producto.getNombre() + "' tiene afectación IGV.");
+                    }
+                });
+            }
+        }
+
+        // 5. Procesar el Carrito de Compras (Detalles) y Actualizar Inventario
         for (VentaDetalleRequestDTO detalleDTO : dto.getDetalles()) {
             VentaDetalle detalle = VentaDetalle.builder()
                     .productoId(detalleDTO.getProductoId())

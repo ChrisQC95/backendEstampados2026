@@ -1,8 +1,6 @@
 package mype_backend.service;
 
-import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +13,7 @@ import java.util.UUID;
 public class LocalStorageServiceImpl implements StorageService {
 
     // Cambiar si se expone en otro puerto/host
-    private final String baseUrl = "http://localhost:8080"; 
+    private final String baseUrl = "http://localhost:8080";
     private final String uploadDir = "./uploads";
 
     public LocalStorageServiceImpl() {
@@ -41,9 +39,9 @@ public class LocalStorageServiceImpl implements StorageService {
 
             // Generar nombre único para evitar colisiones
             String originalFilename = file.getOriginalFilename();
-            String extension = originalFilename != null && originalFilename.contains(".") 
-                ? originalFilename.substring(originalFilename.lastIndexOf(".")) 
-                : "";
+            String extension = originalFilename != null && originalFilename.contains(".")
+                    ? originalFilename.substring(originalFilename.lastIndexOf("."))
+                    : "";
             String uniqueFilename = UUID.randomUUID().toString() + extension;
 
             // Guardar archivo
@@ -65,10 +63,11 @@ public class LocalStorageServiceImpl implements StorageService {
         }
 
         try {
-            // Extraer ruta relativa: "http://localhost:8080/archivos/folder/name.jpg" -> "folder/name.jpg"
+            // Extraer ruta relativa: "http://localhost:8080/archivos/folder/name.jpg" ->
+            // "folder/name.jpg"
             String relativePath = fileUrl.replace(baseUrl + "/archivos/", "");
             Path path = Paths.get(uploadDir, relativePath);
-            
+
             Files.deleteIfExists(path);
         } catch (IOException e) {
             System.err.println("Error al intentar eliminar archivo local: " + e.getMessage());
