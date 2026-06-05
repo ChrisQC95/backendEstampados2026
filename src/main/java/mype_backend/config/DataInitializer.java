@@ -38,6 +38,8 @@ public class DataInitializer implements CommandLineRunner {
                                         "INSERT INTO tipos_comprobante (id, codigo_sunat, descripcion, requiere_cliente_ruc) VALUES (2, '03', 'Boleta de Venta Electrónica', false) ON CONFLICT (id) DO NOTHING");
                         jdbcTemplate.execute(
                                         "INSERT INTO tipos_comprobante (id, codigo_sunat, descripcion, requiere_cliente_ruc) VALUES (3, 'NV', 'Nota de Venta', false) ON CONFLICT (id) DO NOTHING");
+                        jdbcTemplate.execute(
+                                        "INSERT INTO tipos_comprobante (id, codigo_sunat, descripcion, requiere_cliente_ruc) VALUES (4, '07', 'Nota de Crédito', false) ON CONFLICT (id) DO NOTHING");
 
                         jdbcTemplate.execute(
                                         "INSERT INTO monedas (id, codigo_sunat, descripcion, simbolo) VALUES (1, 'PEN', 'Soles', 'S/') ON CONFLICT (id) DO NOTHING");

@@ -13,13 +13,21 @@ import java.util.List;
 @Repository
 public interface VentaRepository extends JpaRepository<Venta, Long> {
 
-    // Para mostrar el historial de ventas en el Dashboard de la MYPE
+    /** Historial completo (incluye NC) para mostrar en el frontend. */
     List<Venta> findByUsuarioId(Long usuarioId);
+
+    /** Conteo de NC emitidas por el usuario — usado para numeración automática. */
+    long countByUsuarioIdAndTipoComprobanteId(Long usuarioId, Long tipoComprobanteId);
 
     /**
      * Reporte Excel Maestro-Detalle.
-     * Hace JOIN entre ventas, ventas_detalle y socios_negocio filtrado por usuario y rango de fechas.
-     * Cada fila representa un ítem de detalle con sus datos de cabecera.
+     * <p>
+     * Excluye:
+     * <ul>
+     *   <li>Las Notas de Crédito (tipoComprobanteId = 4).</li>
+     *   <li>Las ventas que ya tienen documentoOrigenId != null
+     *       (han sido anuladas por una NC).</li>
+     * </ul>
      */
     @Query("""
             SELECT new mype_backend.dto.ReporteVentaExcelDTO(
@@ -45,6 +53,8 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
             WHERE v.usuarioId = :usuarioId
               AND v.fechaEmision >= :fechaInicio
               AND v.fechaEmision <= :fechaFin
+              AND v.tipoComprobanteId <> 4
+              AND v.documentoOrigenId IS NULL
             ORDER BY v.fechaEmision DESC, v.id ASC, d.id ASC
             """)
     List<ReporteVentaExcelDTO> findReporteExcel(
