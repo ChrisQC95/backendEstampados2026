@@ -20,3 +20,4 @@ public interface StorageService {
      */
     void deleteFile(String fileUrl);
 }
+

@@ -46,6 +46,19 @@ public class DataInitializer implements CommandLineRunner {
                         jdbcTemplate.execute(
                                         "INSERT INTO monedas (id, codigo_sunat, descripcion, simbolo) VALUES (2, 'USD', 'Dólares', '$') ON CONFLICT (id) DO NOTHING");
 
+                        jdbcTemplate.execute(
+                                        "INSERT INTO roles (codigo, nombre, descripcion, activo) VALUES ('ADMIN', 'Administrador', 'Acceso total al sistema', true) ON CONFLICT (codigo) DO NOTHING");
+                        jdbcTemplate.execute(
+                                        "INSERT INTO roles (codigo, nombre, descripcion, activo) VALUES ('CONTABILIDAD', 'Contabilidad', 'Acceso a facturación, reportes y cuentas', true) ON CONFLICT (codigo) DO NOTHING");
+                        jdbcTemplate.execute(
+                                        "INSERT INTO roles (codigo, nombre, descripcion, activo) VALUES ('VENTAS', 'Ventas', 'Acceso a clientes, cotizaciones y ventas', true) ON CONFLICT (codigo) DO NOTHING");
+                        jdbcTemplate.execute(
+                                        "INSERT INTO roles (codigo, nombre, descripcion, activo) VALUES ('MARKETING', 'Marketing', 'Acceso a campañas, mockups y contenido', true) ON CONFLICT (codigo) DO NOTHING");
+                        jdbcTemplate.execute(
+                                        "INSERT INTO roles (codigo, nombre, descripcion, activo) VALUES ('LECTURA', 'Solo lectura', 'Acceso limitado de consulta', true) ON CONFLICT (codigo) DO NOTHING");
+                        jdbcTemplate.execute(
+                                        "INSERT INTO roles (codigo, nombre, descripcion, activo) VALUES ('USUARIO', 'Usuario', 'Usuario estándar del sistema', true) ON CONFLICT (codigo) DO NOTHING");
+
                         // Asegurar el catálogo de motivos de traslado
                         try {
                                 jdbcTemplate.execute(
@@ -64,3 +77,5 @@ public class DataInitializer implements CommandLineRunner {
                 }
         }
 }
+
+

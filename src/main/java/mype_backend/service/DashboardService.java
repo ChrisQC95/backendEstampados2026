@@ -31,6 +31,8 @@ public class DashboardService {
     private SocioNegocioRepository socioNegocioRepository;
     @Autowired
     private ProductoServicioRepository productoRepository;
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
 
     // ─────────────────────────────────────────────────────────────────────────
     // HELPER: determina si una venta debe ser IGNORADA por completo en los
@@ -49,10 +51,11 @@ public class DashboardService {
     }
 
     public DashboardDTO getResumenDashboard(Long usuarioId) {
-        List<Venta> ventas = ventaRepository.findByUsuarioId(usuarioId);
-        List<SocioNegocio> socios = socioNegocioRepository.findByUsuarioId(usuarioId);
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
+        List<Venta> ventas = ventaRepository.findByUsuarioId(usuarioEmpresaId);
+        List<SocioNegocio> socios = socioNegocioRepository.findByUsuarioId(usuarioEmpresaId);
 
-        long totalProductos = productoRepository.findByUsuarioId(usuarioId).size();
+        long totalProductos = productoRepository.findByUsuarioId(usuarioEmpresaId).size();
         long totalSocios = socios.size();
 
         LocalDateTime now = LocalDateTime.now();
@@ -234,3 +237,5 @@ public class DashboardService {
                 graficoVentas);
     }
 }
+
+

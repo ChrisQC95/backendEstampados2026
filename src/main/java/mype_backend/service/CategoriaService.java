@@ -12,11 +12,15 @@ public class CategoriaService {
     @Autowired
     private CategoriaRepository categoriaRepository;
 
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
+
     public List<Categoria> listarPorUsuario(Long usuarioId) {
-        return categoriaRepository.findByUsuarioId(usuarioId);
+        return categoriaRepository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
     }
 
     public Categoria guardar(Categoria categoria) {
+        categoria.setUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
         return categoriaRepository.save(categoria);
     }
 
@@ -24,3 +28,4 @@ public class CategoriaService {
         categoriaRepository.deleteById(id);
     }
 }
+

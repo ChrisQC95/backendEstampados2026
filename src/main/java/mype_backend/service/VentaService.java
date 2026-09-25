@@ -26,9 +26,8 @@ import java.math.BigDecimal;
 @Service
 public class VentaService {
 
-    // IDs estables definidos en DataInitializer
-    private static final long ID_FACTURA      = 1L;
-    private static final long ID_BOLETA       = 2L;
+    private static final long ID_FACTURA = 1L;
+    private static final long ID_BOLETA = 2L;
     private static final long ID_NOTA_CREDITO = 4L;
 
     @Autowired private VentaRepository ventaRepository;
@@ -36,17 +35,16 @@ public class VentaService {
     @Autowired private ProductoServicioRepository productoServicioRepository;
     @Autowired private GuiaRemisionRepository guiaRemisionRepository;
     @Autowired private TipoComprobanteRepository tipoComprobanteRepository;
+    @Autowired private EmpresaCompartidaService empresaCompartidaService;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // REGISTRAR VENTA NORMAL
-    // ─────────────────────────────────────────────────────────────────────────
     @Transactional
     public Venta registrarVenta(VentaRequestDTO dto) {
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
         List<Serie> seriesUsuario = serieRepository.findByUsuarioIdAndTipoComprobanteId(
-                dto.getUsuarioId(), dto.getTipoComprobanteId());
+                usuarioEmpresaId, dto.getTipoComprobanteId());
 
         Serie serieSeleccionada = seriesUsuario.stream()
-                .filter(s -> s.getSerie().equalsIgnoreCase(dto.getSerie()) && s.getActivo())
+                .filter(s -> s.getSerie().equalsIgnoreCase(dto.getSerie()) && Boolean.TRUE.equals(s.getActivo()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException(
                         "La serie '" + dto.getSerie() + "' no está configurada o activa para este comprobante."));
@@ -58,7 +56,7 @@ public class VentaService {
         serieRepository.save(serieSeleccionada);
 
         Venta venta = Venta.builder()
-                .usuarioId(dto.getUsuarioId())
+                .usuarioId(usuarioEmpresaId)
                 .socioNegocioId(dto.getSocioNegocioId())
                 .tipoComprobanteId(dto.getTipoComprobanteId())
                 .tipoOperacionId(dto.getTipoOperacionId())
@@ -85,7 +83,7 @@ public class VentaService {
                     if (Boolean.TRUE.equals(p.getAfectoIgv())) {
                         throw new RuntimeException(
                                 "Las Notas de Venta solo permiten productos no gravados. '"
-                                + p.getNombre() + "' tiene afectación IGV.");
+                                        + p.getNombre() + "' tiene afectación IGV.");
                     }
                 });
             }
@@ -139,40 +137,27 @@ public class VentaService {
         return ventaGuardada;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // GENERAR NOTA DE CRÉDITO
-    // ─────────────────────────────────────────────────────────────────────────
-    /**
-     * Emite una Nota de Crédito (código SUNAT '07') sobre una Factura o Boleta existente.
-     * <ul>
-     *   <li>Solo aplica sobre tipoComprobanteId = 1 (Factura) o 2 (Boleta).</li>
-     *   <li>No puede emitirse si la venta ya tiene {@code documentoOrigenId != null} (ya fue anulada).</li>
-     *   <li>Repone stock de todos los bienes ('B') del detalle original.</li>
-     *   <li>Marca la venta original con {@code documentoOrigenId = ID de la NC} →
-     *       inhabilita PDF y excluye del Excel.</li>
-     * </ul>
-     */
     @Transactional
     public Venta generarNotaCredito(Long ventaOriginalId, NotaCreditoRequestDTO dto) {
-
-        // 1. Cargar y validar
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
         Venta original = ventaRepository.findById(ventaOriginalId)
                 .orElseThrow(() -> new RuntimeException("Venta no encontrada con ID: " + ventaOriginalId));
 
+        if (!usuarioEmpresaId.equals(original.getUsuarioId())) {
+            throw new RuntimeException("La venta no pertenece a la empresa configurada.");
+        }
+
         if (original.getTipoComprobanteId() != ID_FACTURA
                 && original.getTipoComprobanteId() != ID_BOLETA) {
-            throw new RuntimeException(
-                    "Solo se pueden emitir Notas de Crédito sobre Facturas o Boletas.");
+            throw new RuntimeException("Solo se pueden emitir Notas de Crédito sobre Facturas o Boletas.");
         }
         if (original.getDocumentoOrigenId() != null) {
-            throw new RuntimeException(
-                    "Este documento ya fue anulado mediante Nota de Crédito ID "
+            throw new RuntimeException("Este documento ya fue anulado mediante Nota de Crédito ID "
                     + original.getDocumentoOrigenId() + ".");
         }
 
-        // 2. Serie y correlativo de la NC
         List<Serie> seriesNc = serieRepository.findByUsuarioIdAndTipoComprobanteId(
-                original.getUsuarioId(), ID_NOTA_CREDITO);
+                usuarioEmpresaId, ID_NOTA_CREDITO);
 
         String serieNc;
         int correlativoNc;
@@ -187,17 +172,15 @@ public class VentaService {
             serieRepository.save(s);
             serieNc = s.getSerie();
         } else {
-            // Numeración automática cuando no hay serie NC configurada
             serieNc = "NC" + (original.getSerie().length() >= 2
                     ? original.getSerie().substring(0, 2) : original.getSerie());
             long existentes = ventaRepository.countByUsuarioIdAndTipoComprobanteId(
-                    original.getUsuarioId(), ID_NOTA_CREDITO);
+                    usuarioEmpresaId, ID_NOTA_CREDITO);
             correlativoNc = (int) (existentes + 1);
         }
 
-        // 3. Construir la NC
         Venta nc = Venta.builder()
-                .usuarioId(original.getUsuarioId())
+                .usuarioId(usuarioEmpresaId)
                 .socioNegocioId(original.getSocioNegocioId())
                 .tipoComprobanteId(ID_NOTA_CREDITO)
                 .tipoOperacionId(original.getTipoOperacionId())
@@ -217,7 +200,6 @@ public class VentaService {
                 .estadoSunat("PENDIENTE")
                 .build();
 
-        // 4. Clonar detalles + reponer stock de bienes
         for (VentaDetalle d : original.getDetalles()) {
             VentaDetalle dNc = VentaDetalle.builder()
                     .productoId(d.getProductoId())
@@ -240,32 +222,24 @@ public class VentaService {
             });
         }
 
-        // 5. Guardar NC
         Venta ncGuardada = ventaRepository.save(nc);
-
-        // 6. Marcar venta original: documentoOrigenId = ID de la NC
         original.setDocumentoOrigenId(ncGuardada.getId());
         ventaRepository.save(original);
 
         return ncGuardada;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // HISTORIAL Y REPORTES
-    // ─────────────────────────────────────────────────────────────────────────
     public List<Venta> listarHistorial(Long usuarioId) {
-        return ventaRepository.findByUsuarioId(usuarioId);
+        return ventaRepository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
     }
 
-    /**
-     * Reporte Excel — excluye NC (tipoComprobanteId=4) y ventas anuladas
-     * (documentoOrigenId != null) mediante la query del repositorio.
-     */
     public List<ReporteVentaExcelDTO> generarReporteExcel(Long usuarioId,
                                                           LocalDate fechaInicio,
                                                           LocalDate fechaFin) {
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
         LocalDateTime inicio = fechaInicio.atStartOfDay();
-        LocalDateTime fin    = fechaFin.atTime(23, 59, 59);
-        return ventaRepository.findReporteExcel(usuarioId, inicio, fin);
+        LocalDateTime fin = fechaFin.atTime(23, 59, 59);
+        return ventaRepository.findReporteExcel(usuarioEmpresaId, inicio, fin);
     }
 }
+

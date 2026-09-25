@@ -9,7 +9,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/ubigeos")
-// @CrossOrigin(origins = "*")
 public class UbigeoController {
 
     @Autowired
@@ -48,3 +47,4 @@ public class UbigeoController {
         return ubigeoRepository.listarDistritos(departamento, provincia);
     }
 }
+

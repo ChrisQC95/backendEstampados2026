@@ -15,20 +15,22 @@ public class SocioNegocioService {
     private SocioNegocioRepository socioNegocioRepository;
     @Autowired
     private UbigeoRepository ubigeoRepository;
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
 
     public List<SocioNegocio> listarPorUsuario(Long usuarioId) {
-        return socioNegocioRepository.findByUsuarioId(usuarioId);
+        return socioNegocioRepository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
     }
 
     public List<SocioNegocio> listarClientes(Long usuarioId) {
-        // Retorna los que son 'C' (Cliente) o 'A' (Ambos)
-        List<SocioNegocio> todos = socioNegocioRepository.findByUsuarioId(usuarioId);
+        List<SocioNegocio> todos = socioNegocioRepository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
         return todos.stream()
                 .filter(s -> s.getTipoSocio().equals("C") || s.getTipoSocio().equals("A"))
                 .toList();
     }
 
     public SocioNegocio guardar(SocioNegocio socio, String codigoUbigeo) {
+        socio.setUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
         if (codigoUbigeo != null && !codigoUbigeo.isBlank()) {
             Ubigeo ubigeo = ubigeoRepository
                     .findById(codigoUbigeo)
@@ -44,3 +46,4 @@ public class SocioNegocioService {
         socioNegocioRepository.deleteById(id);
     }
 }
+

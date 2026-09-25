@@ -12,11 +12,15 @@ public class ProductoServicioService {
     @Autowired
     private ProductoServicioRepository productoServicioRepository;
 
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
+
     public List<ProductoServicio> listarPorUsuario(Long usuarioId) {
-        return productoServicioRepository.findByUsuarioId(usuarioId);
+        return productoServicioRepository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
     }
 
     public ProductoServicio guardar(ProductoServicio producto) {
+        producto.setUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
         return productoServicioRepository.save(producto);
     }
 
@@ -24,3 +28,4 @@ public class ProductoServicioService {
         productoServicioRepository.deleteById(id);
     }
 }
+

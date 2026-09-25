@@ -12,15 +12,20 @@ public class SerieService {
     @Autowired
     private SerieRepository serieRepository;
 
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
+
     public List<Serie> listarPorUsuario(Long usuarioId) {
-        return serieRepository.findByUsuarioId(usuarioId);
+        return serieRepository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
     }
 
     public List<Serie> listarPorComprobante(Long usuarioId, Long tipoComprobanteId) {
-        return serieRepository.findByUsuarioIdAndTipoComprobanteId(usuarioId, tipoComprobanteId);
+        return serieRepository.findByUsuarioIdAndTipoComprobanteId(
+                empresaCompartidaService.getUsuarioEmpresaId(), tipoComprobanteId);
     }
 
     public Serie guardar(Serie serie) {
+        serie.setUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
         return serieRepository.save(serie);
     }
 
@@ -28,3 +33,4 @@ public class SerieService {
         serieRepository.deleteById(id);
     }
 }
+

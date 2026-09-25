@@ -17,3 +17,4 @@ public class VentaRecienteDTO {
     private BigDecimal monto;
     private String estado;
 }
+

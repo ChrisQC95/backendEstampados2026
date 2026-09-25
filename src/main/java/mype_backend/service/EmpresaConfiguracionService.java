@@ -22,16 +22,17 @@ public class EmpresaConfiguracionService {
     @Autowired
     private StorageService storageService;
 
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
+
     @Transactional(readOnly = true)
     public EmpresaPerfilDTO obtenerPerfil(Long usuarioId) {
-        // 1. Buscar el usuario (Obligatorio)
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
+        Usuario usuario = usuarioRepository.findById(usuarioEmpresaId)
+                .orElseThrow(() -> new RuntimeException("Usuario empresa no encontrado"));
 
-        // 2. Buscar la configuración extra (Opcional)
-        Optional<EmpresaConfiguracion> configOpt = configRepository.findByUsuarioId(usuarioId);
+        Optional<EmpresaConfiguracion> configOpt = configRepository.findByUsuarioId(usuarioEmpresaId);
 
-        // 3. Ensamblar el DTO para el frontend
         EmpresaPerfilDTO dto = new EmpresaPerfilDTO();
         dto.setUsuarioId(usuario.getId());
         dto.setRuc(usuario.getRuc());
@@ -51,11 +52,10 @@ public class EmpresaConfiguracionService {
 
     @Transactional
     public EmpresaPerfilDTO guardarOActualizar(EmpresaPerfilDTO dto) {
-        // 1. Actualizar campos en la tabla 'usuarios'
-        Usuario usuario = usuarioRepository.findById(dto.getUsuarioId())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
+        Usuario usuario = usuarioRepository.findById(usuarioEmpresaId)
+                .orElseThrow(() -> new RuntimeException("Usuario empresa no encontrado"));
 
-        // Validar si el RUC ya está en uso por otra cuenta
         if (dto.getRuc() != null && !dto.getRuc().trim().isEmpty()) {
             Optional<Usuario> rucUser = usuarioRepository.findByRuc(dto.getRuc().trim());
             if (rucUser.isPresent() && !rucUser.get().getId().equals(usuario.getId())) {
@@ -69,11 +69,9 @@ public class EmpresaConfiguracionService {
         usuario.setDireccionFiscal(dto.getDireccionFiscal());
         usuarioRepository.save(usuario);
 
-        // 2. Upsert (Crear o Actualizar) en la tabla 'empresa_configuracion'
-        EmpresaConfiguracion config = configRepository.findByUsuarioId(dto.getUsuarioId())
-                .orElse(EmpresaConfiguracion.builder().usuarioId(dto.getUsuarioId()).build());
+        EmpresaConfiguracion config = configRepository.findByUsuarioId(usuarioEmpresaId)
+                .orElse(EmpresaConfiguracion.builder().usuarioId(usuarioEmpresaId).build());
 
-        // Verificar si la URL del logo cambió para eliminar la antigua del Storage
         String oldLogoUrl = config.getLogoUrl();
         String newLogoUrl = dto.getLogoUrl();
 
@@ -86,6 +84,8 @@ public class EmpresaConfiguracionService {
         config.setLogoUrl(newLogoUrl);
         configRepository.save(config);
 
-        return dto; // Retornamos el DTO actualizado
+        dto.setUsuarioId(usuarioEmpresaId);
+        return dto;
     }
 }
+

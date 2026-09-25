@@ -12,11 +12,15 @@ public class ConductorService {
     @Autowired
     private ConductorRepository conductorRepository;
 
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
+
     public List<Conductor> listarPorUsuario(Long usuarioId) {
-        return conductorRepository.findByUsuarioId(usuarioId);
+        return conductorRepository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
     }
 
     public Conductor guardar(Conductor conductor) {
+        conductor.setUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
         return conductorRepository.save(conductor);
     }
 
@@ -24,3 +28,4 @@ public class ConductorService {
         conductorRepository.deleteById(id);
     }
 }
+

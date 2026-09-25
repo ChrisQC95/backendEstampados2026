@@ -18,3 +18,4 @@ public class DashboardController {
         return dashboardService.getResumenDashboard(usuarioId);
     }
 }
+

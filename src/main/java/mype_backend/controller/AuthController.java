@@ -1,25 +1,35 @@
 package mype_backend.controller;
 
+import mype_backend.dto.AuthLoginRequest;
+import mype_backend.dto.UsuarioResponseDTO;
 import mype_backend.entity.Usuario;
 import mype_backend.service.AuthService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import mype_backend.service.UsuarioService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-// @CrossOrigin(origins = "*") // Permitir llamadas desde tu React
 public class AuthController {
 
-    @Autowired
-    private AuthService authService;
+    private final AuthService authService;
+    private final UsuarioService usuarioService;
+
+    public AuthController(AuthService authService, UsuarioService usuarioService) {
+        this.authService = authService;
+        this.usuarioService = usuarioService;
+    }
 
     @PostMapping("/login")
-    public Usuario login(@RequestBody Usuario loginRequest) {
-        // Por ahora, recibimos el UID directamente para probar.
-        // Luego lo cambiaremos por la validación real del Token.
-        return authService.verificarOSubsanarUsuario(
-                loginRequest.getFirebaseUid(),
-                loginRequest.getEmail(),
-                loginRequest.getNombre());
+    public UsuarioResponseDTO login(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody(required = false) AuthLoginRequest request) {
+        String nombreFallback = request != null ? request.nombre() : null;
+        Usuario usuario = authService.sincronizarUsuarioAutenticado(jwt, nombreFallback);
+        return usuarioService.toResponse(usuario);
     }
 }

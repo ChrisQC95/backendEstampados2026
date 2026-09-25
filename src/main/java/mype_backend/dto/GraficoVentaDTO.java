@@ -16,3 +16,4 @@ public class GraficoVentaDTO {
     private BigDecimal notasVenta; // Monto de Notas de Venta en el mes
     private BigDecimal total;     // Suma de los tres tipos
 }
+

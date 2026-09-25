@@ -13,30 +13,30 @@ public class CuentaBancariaService {
     @Autowired
     private CuentaBancariaRepository repository;
 
+    @Autowired
+    private EmpresaCompartidaService empresaCompartidaService;
+
     public List<CuentaBancaria> listarPorUsuario(Long usuarioId) {
-        return repository.findByUsuarioId(usuarioId);
+        return repository.findByUsuarioId(empresaCompartidaService.getUsuarioEmpresaId());
     }
 
     @Transactional
     public CuentaBancaria guardar(CuentaBancaria cuenta) {
-        List<CuentaBancaria> existentes = repository.findByUsuarioId(cuenta.getUsuarioId());
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
+        cuenta.setUsuarioId(usuarioEmpresaId);
+        List<CuentaBancaria> existentes = repository.findByUsuarioId(usuarioEmpresaId);
 
-        // Regla de negocio 1: Si es la primera cuenta del usuario, obligatoriamente es
-        // activa
         if (existentes.isEmpty()) {
             cuenta.setActivo(true);
         }
 
-        // Regla de negocio 2: Si esta cuenta se marca como activa, desactivamos el
-        // resto en la BD
-        if (cuenta.getActivo()) {
-            repository.desactivarTodasPorUsuario(cuenta.getUsuarioId());
+        if (Boolean.TRUE.equals(cuenta.getActivo())) {
+            repository.desactivarTodasPorUsuario(usuarioEmpresaId);
         } else {
-            // Validamos que no intente desactivar la única cuenta activa que tiene
             boolean otraActiva = existentes.stream()
-                    .anyMatch(c -> c.getActivo() && !c.getId().equals(cuenta.getId()));
+                    .anyMatch(c -> Boolean.TRUE.equals(c.getActivo()) && !c.getId().equals(cuenta.getId()));
             if (!otraActiva) {
-                cuenta.setActivo(true); // Forzamos activo si no hay otra opción elegible
+                cuenta.setActivo(true);
             }
         }
 
@@ -48,3 +48,4 @@ public class CuentaBancariaService {
         repository.deleteById(id);
     }
 }
+

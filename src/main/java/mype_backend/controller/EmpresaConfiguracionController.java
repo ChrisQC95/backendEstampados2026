@@ -9,7 +9,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/empresa-configuracion")
-// @CrossOrigin(origins = "*")
 public class EmpresaConfiguracionController {
 
     @Autowired
