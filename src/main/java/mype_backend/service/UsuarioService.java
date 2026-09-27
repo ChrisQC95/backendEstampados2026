@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class UsuarioService {
@@ -29,6 +30,7 @@ public class UsuarioService {
     private static final String ROL_ADMIN = "ADMIN";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final char[] PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%".toCharArray();
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$", Pattern.CASE_INSENSITIVE);
 
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
@@ -174,6 +176,12 @@ public class UsuarioService {
         if (request.email() == null || request.email().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El correo es obligatorio.");
         }
+        if (!EMAIL_PATTERN.matcher(request.email().trim()).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ingresa un correo válido.");
+        }
+        if (request.nombre() == null || request.nombre().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El nombre de usuario es obligatorio.");
+        }
         if (request.rolId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El rol es obligatorio.");
         }
@@ -278,3 +286,5 @@ public class UsuarioService {
     private record FirebaseCreateResult(String uid, String passwordResetLink) {
     }
 }
+
+
