@@ -1,6 +1,8 @@
 package mype_backend.repository;
 
 import mype_backend.dto.ReporteVentaExcelDTO;
+import mype_backend.dto.VentasPorComprobanteDTO;
+import mype_backend.dto.VentasPorProductoDTO;
 import mype_backend.entity.Venta;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +20,48 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
 
     /** Conteo de NC emitidas por el usuario — usado para numeración automática. */
     long countByUsuarioIdAndTipoComprobanteId(Long usuarioId, Long tipoComprobanteId);
+
+    /** Ventas vigentes agrupadas por tipo de comprobante, para el reporte analítico. */
+    @Query("""
+            SELECT new mype_backend.dto.VentasPorComprobanteDTO(
+                v.tipoComprobanteId,
+                tc.descripcion,
+                COUNT(v.id),
+                SUM(v.total)
+            )
+            FROM Venta v
+            JOIN TipoComprobante tc ON tc.id = v.tipoComprobanteId
+            WHERE v.usuarioId = :usuarioId
+              AND v.tipoComprobanteId <> 4
+              AND (v.estadoSunat IS NULL OR UPPER(v.estadoSunat) <> 'ANULADO')
+              AND v.documentoOrigenId IS NULL
+            GROUP BY v.tipoComprobanteId, tc.descripcion
+            ORDER BY tc.descripcion
+            """)
+    List<VentasPorComprobanteDTO> findVentasPorComprobante(@Param("usuarioId") Long usuarioId);
+
+    /** Líneas de ventas vigentes agrupadas por producto y categoría. */
+    @Query("""
+            SELECT new mype_backend.dto.VentasPorProductoDTO(
+                d.productoId,
+                d.productoNombre,
+                COALESCE(c.nombre, 'Sin categoría'),
+                SUM(d.cantidad),
+                SUM(d.totalLinea),
+                COUNT(d.id)
+            )
+            FROM Venta v
+            JOIN v.detalles d
+            LEFT JOIN ProductoServicio p ON p.id = d.productoId
+            LEFT JOIN Categoria c ON c.id = p.categoriaId
+            WHERE v.usuarioId = :usuarioId
+              AND v.tipoComprobanteId <> 4
+              AND (v.estadoSunat IS NULL OR UPPER(v.estadoSunat) <> 'ANULADO')
+              AND v.documentoOrigenId IS NULL
+            GROUP BY d.productoId, d.productoNombre, c.nombre
+            ORDER BY SUM(d.totalLinea) DESC
+            """)
+    List<VentasPorProductoDTO> findVentasPorProducto(@Param("usuarioId") Long usuarioId);
 
     /**
      * Reporte Excel Maestro-Detalle.

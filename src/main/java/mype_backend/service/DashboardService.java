@@ -2,7 +2,12 @@ package mype_backend.service;
 
 import mype_backend.dto.DashboardDTO;
 import mype_backend.dto.GraficoVentaDTO;
+import mype_backend.dto.PedidosTiendaPorEstadoDTO;
+import mype_backend.dto.ProductosTiendaMasSolicitadosDTO;
+import mype_backend.dto.ReportePedidosTiendaDTO;
 import mype_backend.dto.VentaRecienteDTO;
+import mype_backend.dto.VentasPorComprobanteDTO;
+import mype_backend.dto.VentasPorProductoDTO;
 import mype_backend.entity.SocioNegocio;
 import mype_backend.entity.Venta;
 import mype_backend.repository.*;
@@ -33,6 +38,8 @@ public class DashboardService {
     private ProductoServicioRepository productoRepository;
     @Autowired
     private EmpresaCompartidaService empresaCompartidaService;
+    @Autowired
+    private PedidoTiendaRepository pedidoTiendaRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     // HELPER: determina si una venta debe ser IGNORADA por completo en los
@@ -235,6 +242,28 @@ public class DashboardService {
                 totalSocios,
                 ventasRecientes,
                 graficoVentas);
+    }
+
+    /** Reporte de ventas vigentes por tipo de comprobante. */
+    public List<VentasPorComprobanteDTO> getVentasPorComprobante(Long usuarioId) {
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
+        return ventaRepository.findVentasPorComprobante(usuarioEmpresaId);
+    }
+
+    /** Reporte de unidades e importes vendidos por producto y categoría. */
+    public List<VentasPorProductoDTO> getVentasPorProducto(Long usuarioId) {
+        Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
+        return ventaRepository.findVentasPorProducto(usuarioEmpresaId);
+    }
+
+    /** Reporte operativo de pedidos por estado y productos de tienda más solicitados. */
+    public ReportePedidosTiendaDTO getReportePedidosTienda(Long usuarioId) {
+        List<PedidosTiendaPorEstadoDTO> pedidosPorEstado =
+                pedidoTiendaRepository.resumirPedidosPorEstado();
+        List<ProductosTiendaMasSolicitadosDTO> productosMasSolicitados =
+                pedidoTiendaRepository.resumirProductosMasSolicitados();
+
+        return new ReportePedidosTiendaDTO(pedidosPorEstado, productosMasSolicitados);
     }
 }
 

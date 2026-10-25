@@ -19,6 +19,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/tienda/productos").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/tienda/envios").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/roles/sistema").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/roles/tienda").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/tienda/checkout").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/tienda/pedidos/*/pago").authenticated()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
 

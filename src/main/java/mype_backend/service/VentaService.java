@@ -8,19 +8,31 @@ import mype_backend.dto.VentaDetalleRequestDTO;
 import mype_backend.entity.Venta;
 import mype_backend.entity.VentaDetalle;
 import mype_backend.entity.GuiaRemision;
+import mype_backend.entity.PedidoTienda;
+import mype_backend.entity.SocioNegocio;
+import mype_backend.entity.Ubigeo;
 import mype_backend.entity.Serie;
 import mype_backend.entity.TipoComprobante;
+import mype_backend.entity.TiendaProducto;
 import mype_backend.repository.VentaRepository;
 import mype_backend.repository.SerieRepository;
 import mype_backend.repository.GuiaRemisionRepository;
 import mype_backend.repository.ProductoServicioRepository;
 import mype_backend.repository.TipoComprobanteRepository;
+import mype_backend.repository.PedidoTiendaRepository;
+import mype_backend.repository.SocioNegocioRepository;
+import mype_backend.repository.UbigeoRepository;
+import mype_backend.repository.TiendaProductoRepository;
+import mype_backend.service.TiendaEnvioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 import java.math.BigDecimal;
 
 @Service
@@ -36,10 +48,27 @@ public class VentaService {
     @Autowired private GuiaRemisionRepository guiaRemisionRepository;
     @Autowired private TipoComprobanteRepository tipoComprobanteRepository;
     @Autowired private EmpresaCompartidaService empresaCompartidaService;
+    @Autowired private PedidoTiendaRepository pedidoTiendaRepository;
+    @Autowired private SocioNegocioRepository socioNegocioRepository;
+    @Autowired private UbigeoRepository ubigeoRepository;
+    @Autowired private TiendaProductoRepository tiendaProductoRepository;
+    @Autowired private TiendaEnvioService tiendaEnvioService;
 
     @Transactional
     public Venta registrarVenta(VentaRequestDTO dto) {
         Long usuarioEmpresaId = empresaCompartidaService.getUsuarioEmpresaId();
+        List<PedidoTienda> pedidosTienda = resolverPedidosTienda(dto);
+        Long socioNegocioId = resolverSocioNegocioId(dto, usuarioEmpresaId, pedidosTienda);
+        validarDatosPedidos(dto, pedidosTienda);
+        Set<Long> productosConStockReservado = new java.util.HashSet<>();
+        for (PedidoTienda pedido : pedidosTienda) {
+            for (var item : pedido.getItems()) {
+                TiendaProducto listing = tiendaProductoRepository.findById(item.getTiendaProductoId()).orElse(null);
+                Long productId = item.getProductoServicioId() != null ? item.getProductoServicioId()
+                        : listing == null || listing.getProductoServicio() == null ? null : listing.getProductoServicio().getId();
+                if (productId != null) productosConStockReservado.add(productId);
+            }
+        }
         List<Serie> seriesUsuario = serieRepository.findByUsuarioIdAndTipoComprobanteId(
                 usuarioEmpresaId, dto.getTipoComprobanteId());
 
@@ -57,7 +86,7 @@ public class VentaService {
 
         Venta venta = Venta.builder()
                 .usuarioId(usuarioEmpresaId)
-                .socioNegocioId(dto.getSocioNegocioId())
+                .socioNegocioId(socioNegocioId)
                 .tipoComprobanteId(dto.getTipoComprobanteId())
                 .tipoOperacionId(dto.getTipoOperacionId())
                 .serie(dto.getSerie())
@@ -93,6 +122,7 @@ public class VentaService {
             VentaDetalle detalle = VentaDetalle.builder()
                     .productoId(detalleDTO.getProductoId())
                     .productoNombre(detalleDTO.getProductoNombre())
+                    .talla(detalleDTO.getTalla())
                     .unidadMedida(detalleDTO.getUnidadMedida())
                     .cantidad(detalleDTO.getCantidad())
                     .precioUnitario(detalleDTO.getPrecioUnitario())
@@ -102,6 +132,7 @@ public class VentaService {
                     .build();
             venta.agregarDetalle(detalle);
 
+            if (!productosConStockReservado.contains(detalleDTO.getProductoId())) {
             productoServicioRepository.findById(detalleDTO.getProductoId()).ifPresent(producto -> {
                 if ("B".equals(producto.getTipo())) {
                     BigDecimal stock = producto.getStockActual() != null
@@ -114,9 +145,18 @@ public class VentaService {
                     productoServicioRepository.save(producto);
                 }
             });
+            }
         }
 
         Venta ventaGuardada = ventaRepository.save(venta);
+
+        if (!pedidosTienda.isEmpty()) {
+            for (PedidoTienda pedido : pedidosTienda) {
+                pedido.setEstadoFacturacion("TERMINADO");
+                pedido.setVentaId(ventaGuardada.getId());
+            }
+            pedidoTiendaRepository.saveAll(pedidosTienda);
+        }
 
         if (dto.getGuiaRemision() != null) {
             GuiaRemisionRequestDTO gDto = dto.getGuiaRemision();
@@ -135,6 +175,142 @@ public class VentaService {
         }
 
         return ventaGuardada;
+    }
+
+    private List<PedidoTienda> resolverPedidosTienda(VentaRequestDTO dto) {
+        if (dto.getPedidoTiendaIds() == null || dto.getPedidoTiendaIds().isEmpty()) return List.of();
+        List<Long> ids = dto.getPedidoTiendaIds().stream().distinct().toList();
+        if (ids.size() != dto.getPedidoTiendaIds().size()) {
+            throw new RuntimeException("La selección contiene pedidos duplicados.");
+        }
+        List<PedidoTienda> pedidos = pedidoTiendaRepository.findPedidosPendientesFacturacionPorIdsForUpdate(ids);
+        if (pedidos.size() != ids.size()) {
+            throw new RuntimeException("Uno o más pedidos ya fueron facturados o dejaron de estar pagados.");
+        }
+        return pedidos;
+    }
+
+    private Long resolverSocioNegocioId(VentaRequestDTO dto, Long usuarioEmpresaId, List<PedidoTienda> pedidos) {
+        if (pedidos.isEmpty()) return dto.getSocioNegocioId();
+
+        PedidoTienda principal = pedidos.get(0);
+        for (PedidoTienda pedido : pedidos) {
+            if (!principal.getTipoComprobanteFacturacion().equals(pedido.getTipoComprobanteFacturacion())
+                    || !principal.getTipoDocumentoFacturacion().equals(pedido.getTipoDocumentoFacturacion())
+                    || !principal.getNumeroDocumentoFacturacion().equals(pedido.getNumeroDocumentoFacturacion())) {
+                throw new RuntimeException("Solo se pueden facturar juntos pedidos del mismo cliente y comprobante.");
+            }
+        }
+
+        SocioNegocio socio = null;
+        if (dto.getSocioNegocioId() != null && dto.getSocioNegocioId() > 0) {
+            socio = socioNegocioRepository.findById(dto.getSocioNegocioId())
+                    .orElseThrow(() -> new RuntimeException("El cliente seleccionado ya no existe."));
+            if (!usuarioEmpresaId.equals(socio.getUsuarioId())
+                    || !principal.getTipoDocumentoFacturacion().equals(socio.getTipoDocumento())
+                    || !principal.getNumeroDocumentoFacturacion().equals(socio.getNumeroDocumento())) {
+                throw new RuntimeException("El cliente seleccionado no coincide con los datos de facturación del pedido.");
+            }
+        }
+
+        if (socio == null) {
+            socio = socioNegocioRepository
+                    .findFirstByUsuarioIdAndTipoDocumentoAndNumeroDocumento(usuarioEmpresaId,
+                            principal.getTipoDocumentoFacturacion(), principal.getNumeroDocumentoFacturacion())
+                    .orElseGet(SocioNegocio::new);
+        }
+        socio.setUsuarioId(usuarioEmpresaId);
+        socio.setTipoSocio("C");
+        socio.setTipoDocumento(principal.getTipoDocumentoFacturacion());
+        socio.setNumeroDocumento(principal.getNumeroDocumentoFacturacion());
+        socio.setTipoPersona("06".equals(principal.getTipoDocumentoFacturacion()) ? "Jurídica" : "Natural");
+        socio.setNombreRazonSocial(principal.getNombreFacturacion());
+        socio.setDireccionFiscal(principal.getDireccionFiscalFacturacion());
+        socio.setEmailFacturacion(principal.getEmailFacturacion());
+        if (principal.getUbigeoFiscalFacturacion() != null) {
+            Ubigeo ubigeo = ubigeoRepository.findById(principal.getUbigeoFiscalFacturacion())
+                    .orElseThrow(() -> new RuntimeException("El ubigeo fiscal del pedido no existe."));
+            socio.setUbigeo(ubigeo);
+        }
+        return socioNegocioRepository.save(socio).getId();
+    }
+
+    private void validarDatosPedidos(VentaRequestDTO dto, List<PedidoTienda> pedidos) {
+        if (pedidos.isEmpty()) return;
+        PedidoTienda principal = pedidos.get(0);
+        long tipoComprobanteEsperado = "FACTURA".equals(principal.getTipoComprobanteFacturacion()) ? ID_FACTURA : 2L;
+        if (!Long.valueOf(tipoComprobanteEsperado).equals(dto.getTipoComprobanteId())) {
+            throw new RuntimeException("El tipo de comprobante no coincide con el seleccionado por el cliente.");
+        }
+        if (!Long.valueOf(1L).equals(dto.getTipoPagoId())) {
+            throw new RuntimeException("Los pedidos pagados en línea deben registrarse como pago al contado.");
+        }
+        BigDecimal totalPedidos = pedidos.stream()
+                .map(p -> p.getTotal() == null ? p.getSubtotal().add(p.getCostoEnvio()) : p.getTotal())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (dto.getTotal() == null || totalPedidos.compareTo(dto.getTotal()) != 0) {
+            throw new RuntimeException("El total de la venta debe coincidir con los productos de los pedidos seleccionados.");
+        }
+
+        Map<Long, BigDecimal> cantidadesEsperadas = new HashMap<>();
+        Map<Long, BigDecimal> importesEsperados = new HashMap<>();
+        for (PedidoTienda pedido : pedidos) {
+            for (var item : pedido.getItems()) {
+                TiendaProducto listing = tiendaProductoRepository.findById(item.getTiendaProductoId()).orElse(null);
+                Long productId = item.getProductoServicioId() != null ? item.getProductoServicioId()
+                        : listing == null || listing.getProductoServicio() == null ? null : listing.getProductoServicio().getId();
+                if (productId == null) throw new RuntimeException("No se pudo resolver el producto interno del pedido " + pedido.getCodigo() + ".");
+                acumularLineaEsperada(cantidadesEsperadas, importesEsperados, productId, item.getCantidad(), item.getPrecioProducto());
+                Long serviceId = item.getServicioEstampadoId() != null ? item.getServicioEstampadoId()
+                        : listing == null || listing.getServicioEstampado() == null ? null : listing.getServicioEstampado().getId();
+                if (serviceId != null && item.getPrecioEstampado() != null && item.getPrecioEstampado().signum() > 0) {
+                    acumularLineaEsperada(cantidadesEsperadas, importesEsperados, serviceId, item.getCantidad(), item.getPrecioEstampado());
+                }
+            }
+            BigDecimal costoEnvio = pedido.getCostoEnvio() == null ? BigDecimal.ZERO : pedido.getCostoEnvio();
+            if (costoEnvio.signum() > 0) {
+                Long shippingProductId = resolverProductoEnvioId(pedido);
+                if (shippingProductId == null) {
+                    throw new RuntimeException("No se pudo resolver el servicio de envío del pedido " + pedido.getCodigo() + ".");
+                }
+                acumularLineaEsperada(cantidadesEsperadas, importesEsperados, shippingProductId, 1, costoEnvio);
+            }
+        }
+        Map<Long, BigDecimal> cantidadesVenta = new HashMap<>();
+        Map<Long, BigDecimal> importesVenta = new HashMap<>();
+        for (VentaDetalleRequestDTO detalle : dto.getDetalles()) {
+            if (detalle.getCantidad() == null || detalle.getPrecioUnitario() == null || detalle.getTotalLinea() == null
+                    || detalle.getPrecioUnitario().multiply(detalle.getCantidad()).compareTo(detalle.getTotalLinea()) != 0) {
+                throw new RuntimeException("El precio y el importe de cada línea deben ser consistentes.");
+            }
+            cantidadesVenta.merge(detalle.getProductoId(), detalle.getCantidad(), BigDecimal::add);
+            importesVenta.merge(detalle.getProductoId(), detalle.getTotalLinea(), BigDecimal::add);
+        }
+        if (!mapasMonetariamenteIguales(cantidadesEsperadas, cantidadesVenta)
+                || !mapasMonetariamenteIguales(importesEsperados, importesVenta)) {
+            throw new RuntimeException("Las líneas de la venta deben coincidir exactamente con los productos y precios de los pedidos.");
+        }
+    }
+
+    private Long resolverProductoEnvioId(PedidoTienda pedido) {
+        if (pedido.getProductoServicioEnvioId() != null) return pedido.getProductoServicioEnvioId();
+        String codigo = tiendaEnvioService.codigoDesdeObservaciones(pedido.getObservaciones());
+        if (codigo == null) return null;
+        return tiendaEnvioService.resolverPorCodigo(codigo).productoId();
+    }
+
+    private void acumularLineaEsperada(Map<Long, BigDecimal> cantidades, Map<Long, BigDecimal> importes,
+                                       Long productoId, Integer cantidad, BigDecimal precioUnitario) {
+        cantidades.merge(productoId, BigDecimal.valueOf(cantidad), BigDecimal::add);
+        importes.merge(productoId, precioUnitario.multiply(BigDecimal.valueOf(cantidad)), BigDecimal::add);
+    }
+
+    private boolean mapasMonetariamenteIguales(Map<Long, BigDecimal> esperados, Map<Long, BigDecimal> recibidos) {
+        if (!esperados.keySet().equals(recibidos.keySet())) return false;
+        return esperados.entrySet().stream().allMatch(entry -> {
+            BigDecimal recibida = recibidos.get(entry.getKey());
+            return recibida != null && entry.getValue().compareTo(recibida) == 0;
+        });
     }
 
     @Transactional
@@ -204,6 +380,7 @@ public class VentaService {
             VentaDetalle dNc = VentaDetalle.builder()
                     .productoId(d.getProductoId())
                     .productoNombre(d.getProductoNombre())
+                    .talla(d.getTalla())
                     .unidadMedida(d.getUnidadMedida())
                     .cantidad(d.getCantidad())
                     .precioUnitario(d.getPrecioUnitario())

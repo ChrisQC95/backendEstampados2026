@@ -10,6 +10,8 @@ import java.util.List;
 @Service
 public class RolService {
 
+    private static final String ROL_CLIENTE_TIENDA = "CLIENTE_TIENDA";
+
     private final RolRepository rolRepository;
 
     public RolService(RolRepository rolRepository) {
@@ -17,10 +19,27 @@ public class RolService {
     }
 
     public List<RolResponseDTO> listarActivos() {
-        return rolRepository.findByActivoTrueOrderByNombreAsc()
-                .stream()
+        return rolesActivos().stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public List<RolResponseDTO> listarRolesSistemaPublicos() {
+        return rolesActivos().stream()
+                .filter(rol -> !ROL_CLIENTE_TIENDA.equals(rol.getCodigo()))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<RolResponseDTO> listarRolesTiendaPublicos() {
+        return rolesActivos().stream()
+                .filter(rol -> ROL_CLIENTE_TIENDA.equals(rol.getCodigo()))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private List<Rol> rolesActivos() {
+        return rolRepository.findByActivoTrueOrderByNombreAsc();
     }
 
     RolResponseDTO toResponse(Rol rol) {

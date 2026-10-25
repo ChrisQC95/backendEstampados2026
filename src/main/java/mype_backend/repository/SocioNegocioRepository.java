@@ -4,6 +4,7 @@ import mype_backend.entity.SocioNegocio;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SocioNegocioRepository extends JpaRepository<SocioNegocio, Long> {
@@ -14,4 +15,7 @@ public interface SocioNegocioRepository extends JpaRepository<SocioNegocio, Long
     // Lista SOLO clientes o SOLO proveedores (útil para los selects de
     // ventas/compras)
     List<SocioNegocio> findByUsuarioIdAndTipoSocio(Long usuarioId, String tipoSocio);
+
+    Optional<SocioNegocio> findFirstByUsuarioIdAndTipoDocumentoAndNumeroDocumento(
+            Long usuarioId, String tipoDocumento, String numeroDocumento);
 }

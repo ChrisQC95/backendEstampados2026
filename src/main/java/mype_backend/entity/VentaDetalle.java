@@ -29,6 +29,9 @@ public class VentaDetalle {
     @Column(name = "producto_nombre", nullable = false, length = 255)
     private String productoNombre;
 
+    @Column(length = 30)
+    private String talla;
+
     @Column(name = "unidad_medida", nullable = false, length = 3)
     private String unidadMedida;
 

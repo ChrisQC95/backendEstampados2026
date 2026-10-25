@@ -32,4 +32,13 @@ public class AuthController {
         Usuario usuario = authService.sincronizarUsuarioAutenticado(jwt, nombreFallback);
         return usuarioService.toResponse(usuario);
     }
+
+    @PostMapping("/tienda/login")
+    public UsuarioResponseDTO loginTienda(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody(required = false) AuthLoginRequest request) {
+        String nombreFallback = request != null ? request.nombre() : null;
+        Usuario usuario = authService.sincronizarClienteTiendaAutenticado(jwt, nombreFallback);
+        return usuarioService.toResponse(usuario);
+    }
 }

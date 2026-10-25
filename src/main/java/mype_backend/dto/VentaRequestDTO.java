@@ -9,6 +9,7 @@ import java.util.List;
 public class VentaRequestDTO {
     private Long usuarioId;
     private Long socioNegocioId;
+    private List<Long> pedidoTiendaIds;
     private Long tipoComprobanteId;
     private Long tipoOperacionId;
     private Long monedaId;

@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 public class VentaDetalleRequestDTO {
     private Long productoId;
     private String productoNombre;
+    private String talla;
     private String unidadMedida;
 
     private BigDecimal cantidad;
